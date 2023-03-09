@@ -2,6 +2,7 @@ service: aws-billing-to-slack
 
 plugins:
   - serverless-python-requirements
+  - serverless-plugin-aws-alerts
 package:
   exclude:
     - node_modules/**
@@ -41,3 +42,14 @@ functions:
     environment:
       LENGTH: ${param:group_length, '15'}
       SLACK_WEBHOOK_URL: ${param:slack_url, ''}
+
+custom:
+  alerts:
+    topics:
+      alarm:
+        topic: ${self:service}-alerts-alarm
+        notifications:
+          - protocol: email
+    alarms:
+      - functionErrors
+      - functionThrottles

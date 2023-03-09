@@ -3,6 +3,7 @@
   "description": "",
   "version": "0.1.0",
   "devDependencies": {
-    "serverless-python-requirements": "^6.0.0"
+    "serverless-python-requirements": "^6.0.0",
+    "serverless-plugin-aws-alerts": "^1.7.5"
   }
 }
