@@ -12,6 +12,8 @@ provider:
   region: ${env:AWS_REGION, env:AWS_DEFAULT_REGION, 'us-east-1'}
   runtime: python3.9
 
+  deploymentBucket:
+    blockPublicAccess: true
   iam:
     role:
       statements:
