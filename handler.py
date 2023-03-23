@@ -135,19 +135,32 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
             cost_per_month_dict[key].append(cost)
         month_count += 1
 
+    cost_per_day_dict: Dict[str, List[float]] = defaultdict(list)
+    for month in reversed(daily_cost_and_usage_data['ResultsByTime']):
+        for group in month['Groups']:
+            key = group['Keys'][0]
+
+            dimension = find_by_key(daily_cost_and_usage_data["DimensionValueAttributes"], "Value", key)
+            if dimension:
+                key += " ("+dimension["Attributes"]["description"]+")"
+
+            cost = float(group['Metrics'][cost_aggregation]['Amount'])
+            cost_per_day_dict[key].append(cost)
+        month_count += 1
+
     # Sort the map by yesterday's cost
     most_expensive = sorted(cost_per_month_dict.items(), key=lambda i: i[1][0], reverse=True)
     longest_name_len = len(max(cost_per_month_dict.keys(), key = len))
 
-    buffer = f"{'AWS Accounts':^{longest_name_len}} | Month-to-date | {'Last month':>5}\n"
+    buffer = f"{'AWS Accounts':^{longest_name_len}} | Month-to-date | yesterday | {'Last month':>5}\n"
     for name, costs in most_expensive[:max_entries]:
-        buffer += f"{name:{longest_name_len}} | {costs[0]:>12,.2f}$ | {costs[1]:.2f}$\n"
+        buffer += f"{name:{longest_name_len}} | {costs[0]:>12,.2f}$ | {cost_per_day_dict[name][0]:>8,.2f}$ | {costs[1]:.2f}$\n"
 
     other_costs = [0.0] * 2
     for _, costs in most_expensive[max_entries:]:
         for i, cost in enumerate(costs):
             other_costs[i] += cost
-    buffer += f"{'Other':{longest_name_len}} | {other_costs[0]:>12,.2f}$ | {other_costs[1]:.2f}$\n"
+    buffer += f"{'Other':{longest_name_len}} | {other_costs[0]:>12,.2f}$ |           | {other_costs[1]:.2f}$\n"
 
     return buffer
 
