@@ -87,8 +87,35 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
             },
         ],
     )
+    daily_cost_and_usage_data = client.get_cost_and_usage(
+        TimePeriod={
+            "Start": a_week_ago.strftime('%Y-%m-%d'),
+            "End": today.strftime('%Y-%m-%d'),
+        },
+        Granularity="DAILY",
+        Filter={
+            "Not": {
+                "Dimensions": {
+                    "Key": "RECORD_TYPE",
+                    "Values": [
+                        "Credit",
+                        "Refund",
+                        "Upfront",
+                        "Support",
+                    ]
+                }
+            }
+        },
+        Metrics=[cost_aggregation],
+        GroupBy=[
+            {
+                "Type": "DIMENSION",
+                "Key": "LINKED_ACCOUNT",
+            },
+        ],
+    )
 
-    # New method, which first creates a dict of dicts
+    # first create a dict of dicts
     # then loop over the services and loop over the list_of_dates
     # and this means even for sparse data we get a full list of costs
     cost_per_month_dict: Dict[str, List[float]] = defaultdict(list)
@@ -96,9 +123,6 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
     for month in reversed(monthly_cost_and_usage_data['ResultsByTime']):
         if month_count > 1:
            continue ## only process two arounds, as prior data will be partial
-
-        start_date = month["TimePeriod"]["Start"]
-        logger.info(start_date)
 
         for group in month['Groups']:
             key = group['Keys'][0]
@@ -110,12 +134,9 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
             cost = float(group['Metrics'][cost_aggregation]['Amount'])
             cost_per_month_dict[key].append(cost)
         month_count += 1
-    logger.info(cost_per_month_dict)
 
     # Sort the map by yesterday's cost
     most_expensive = sorted(cost_per_month_dict.items(), key=lambda i: i[1][0], reverse=True)
-    logger.info(most_expensive)
-
     longest_name_len = len(max(cost_per_month_dict.keys(), key = len))
 
     buffer = f"{'AWS Accounts':^{longest_name_len}} | Month-to-date | {'Last month':>5}\n"
