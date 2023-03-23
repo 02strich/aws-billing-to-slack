@@ -54,20 +54,19 @@ def lambda_handler(event, context):
         publish_slack(slack_hook_url, buffer)
 
 
-def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost", result: Optional[dict] = None, yesterday_str: Optional[str]  = None):
-    yesterday = datetime.datetime.today() - datetime.timedelta(days=1)
-    if yesterday_str is not None:
-        yesterday = datetime.datetime.strptime(yesterday_str, '%Y-%m-%d')
-    two_months_ago = yesterday - datetime.timedelta(days=70)
+def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
+    today = datetime.datetime.today()
+    a_week_ago = today - datetime.timedelta(days=7)
+    two_months_ago = today - datetime.timedelta(days=70)
 
     client = boto3.client('ce')
-    query = {
-        "TimePeriod": {
+    monthly_cost_and_usage_data = client.get_cost_and_usage(
+        TimePeriod={
             "Start": two_months_ago.strftime('%Y-%m-%d'),
-            "End": yesterday.strftime('%Y-%m-%d'),
+            "End": today.strftime('%Y-%m-%d'),
         },
-        "Granularity": "MONTHLY",
-        "Filter": {
+        Granularity="MONTHLY",
+        Filter={
             "Not": {
                 "Dimensions": {
                     "Key": "RECORD_TYPE",
@@ -80,25 +79,21 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost", resul
                 }
             }
         },
-        "Metrics": [cost_aggregation],
-        "GroupBy": [
+        Metrics=[cost_aggregation],
+        GroupBy=[
             {
                 "Type": "DIMENSION",
                 "Key": "LINKED_ACCOUNT",
             },
         ],
-    }
-
-    # Only run the query when on lambda, not when testing locally with example json
-    cost_and_usage_data = result or client.get_cost_and_usage(**query)
-    logger.info(cost_and_usage_data)
+    )
 
     # New method, which first creates a dict of dicts
     # then loop over the services and loop over the list_of_dates
     # and this means even for sparse data we get a full list of costs
     cost_per_month_dict: Dict[str, List[float]] = defaultdict(list)
     month_count = 0
-    for month in reversed(cost_and_usage_data['ResultsByTime']):
+    for month in reversed(monthly_cost_and_usage_data['ResultsByTime']):
         if month_count > 1:
            continue ## only process two arounds, as prior data will be partial
 
@@ -108,7 +103,7 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost", resul
         for group in month['Groups']:
             key = group['Keys'][0]
 
-            dimension = find_by_key(cost_and_usage_data["DimensionValueAttributes"], "Value", key)
+            dimension = find_by_key(monthly_cost_and_usage_data["DimensionValueAttributes"], "Value", key)
             if dimension:
                 key += " ("+dimension["Attributes"]["description"]+")"
 
