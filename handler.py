@@ -154,7 +154,7 @@ def report_cost(max_entries: int, cost_aggregation: str = "UnblendedCost"):
 
     buffer = f"{'AWS Accounts':^{longest_name_len}} | Month-to-date | yesterday | {'Last month':>5}\n"
     for name, costs in most_expensive[:max_entries]:
-        buffer += f"{name:{longest_name_len}} | {costs[0]:>12,.2f}$ | {cost_per_day_dict.get(name, [0])[0]:>8,.2f}$ | {costs[1]:.2f}$\n"
+        buffer += f"{name:{longest_name_len}} | {costs[0]:>12,.2f}$ | {cost_per_day_dict.get(name, [0])[0]:>8,.2f}$ | {(costs[1] if len(costs) > 1 else 0):.2f}$\n"
 
     other_costs = [0.0] * 2
     for _, costs in most_expensive[max_entries:]:
